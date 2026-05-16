@@ -1,6 +1,6 @@
 # Cucumber
 
-Cucumber is an open-source rotoscoped pixel-video studio for game artists. The first app in the project, RotoPixel Studio, converts ordinary video into a consistent rotoscoped pixel-game look, so AI-generated clips, gameplay references, or filmed motion can land in the same visual language before being used as animation reference, cutscene material, or sprite-sheet source.
+Cucumber is an open-source desktop studio for rotoscoped pixel-video art. It converts ordinary video into a consistent retro game look, so AI-generated clips, gameplay references, or filmed motion can land in the same visual language before being used as animation reference, cutscene material, or sprite-sheet source.
 
 ## What it does
 
@@ -11,18 +11,40 @@ Cucumber is an open-source rotoscoped pixel-video studio for game artists. The f
 - Pixelate the result at a controllable block size.
 - Export an MP4 from the processed frames.
 
-## Quick start
+## Desktop Quick Start
+
+```powershell
+.\launch_desktop.ps1
+```
+
+Or run the commands manually:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-streamlit run app.py
+python cucumber_desktop.py
 ```
 
-The app opens at `http://localhost:8501`.
+## Build A Windows App
 
-## Style controls
+```powershell
+.\build_windows.ps1
+```
+
+The executable is created at `dist\Cucumber\Cucumber.exe`.
+
+## Web Prototype
+
+The older Streamlit prototype is still included as a quick browser fallback:
+
+```powershell
+.\launch.ps1
+```
+
+It opens at `http://localhost:8501`.
+
+## Style Controls
 
 - `Palette`: fixed palettes keep the same colors across batches and reduce visual drift.
 - `Pixel size`: larger values make the footage read more like low-resolution game art.
@@ -35,8 +57,10 @@ The app opens at `http://localhost:8501`.
 ## Project layout
 
 ```text
-app.py                  Streamlit interface
-rotopixel/processor.py  OpenCV video and image processing
+assets/                 Cucumber app icon and mascot art
+cucumber_desktop.py     PySide6 desktop application
+app.py                  Streamlit prototype
+rotopixel/processor.py  OpenCV video and image processing core
 rotopixel/palettes.py   Fixed game-style palettes
 tests/                  Focused processing tests
 ```

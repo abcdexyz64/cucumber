@@ -3,12 +3,14 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .streamlit/secrets.toml
+build/
+dist/
 exports/
 tmp/
+*.spec
 *.mp4
 *.mov
 *.avi
 *.mkv
 *.webm
 *.gif
-
