@@ -3,8 +3,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QLocale, Qt, QThread, Signal
-from PySide6.QtGui import QDragEnterEvent, QDropEvent, QIcon, QImage, QPixmap
+from PySide6.QtCore import QLocale, QSize, Qt, QThread, QUrl, Signal
+from PySide6.QtGui import QAction, QDesktopServices, QDragEnterEvent, QDropEvent, QIcon, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -18,8 +18,10 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QProgressBar,
+    QScrollArea,
     QSlider,
     QSpinBox,
+    QToolBar,
     QVBoxLayout,
     QWidget,
 )
@@ -36,6 +38,22 @@ EXPORT_DIR.mkdir(exist_ok=True)
 TEXT = {
     "en": {
         "app_caption": "Rotoscoped pixel-video studio",
+        "menu_file": "File",
+        "menu_settings": "Settings",
+        "menu_pipeline": "Pipeline",
+        "menu_view": "View",
+        "menu_help": "Help",
+        "action_open": "Open Video",
+        "action_preview": "Render Preview",
+        "action_export": "Export MP4",
+        "action_open_exports": "Open Exports Folder",
+        "action_quit": "Quit",
+        "action_reset": "Reset Style",
+        "action_language_zh": "Chinese UI",
+        "action_language_en": "English UI",
+        "action_pipeline_overview": "Current Pipeline",
+        "action_toggle_frame_limit": "Toggle Test Frame Limit",
+        "action_about": "About Cucumber",
         "drop_title": "Drop a video here",
         "drop_subtitle": "MP4, MOV, AVI, MKV, or WEBM",
         "preview_title": "Preview frame",
@@ -73,9 +91,29 @@ TEXT = {
         "export_complete": "Export complete",
         "saved_to": "Saved to:\n{path}",
         "export_failed": "Export failed",
+        "pipeline_title": "Current Pipeline",
+        "pipeline_body": "1. Open or drop source video\n2. Preview a styled frame\n3. Tune palette, pixel size, ink, edge thresholds, and FPS\n4. Export MP4 with stable style settings",
+        "about_title": "About Cucumber",
+        "about_body": "Cucumber is an open-source desktop studio for turning video into rotoscoped pixel-game footage.",
     },
     "zh": {
         "app_caption": "转描像素视频工作室",
+        "menu_file": "文件",
+        "menu_settings": "设置",
+        "menu_pipeline": "管线",
+        "menu_view": "视图",
+        "menu_help": "帮助",
+        "action_open": "打开视频",
+        "action_preview": "生成预览",
+        "action_export": "导出 MP4",
+        "action_open_exports": "打开导出文件夹",
+        "action_quit": "退出",
+        "action_reset": "重置风格",
+        "action_language_zh": "中文界面",
+        "action_language_en": "英文界面",
+        "action_pipeline_overview": "当前管线",
+        "action_toggle_frame_limit": "切换测试帧数限制",
+        "action_about": "关于 Cucumber",
         "drop_title": "把视频拖到这里",
         "drop_subtitle": "支持 MP4、MOV、AVI、MKV、WEBM",
         "preview_title": "预览帧",
@@ -113,6 +151,10 @@ TEXT = {
         "export_complete": "导出完成",
         "saved_to": "已保存到：\n{path}",
         "export_failed": "导出失败",
+        "pipeline_title": "当前管线",
+        "pipeline_body": "1. 打开或拖入源视频\n2. 生成一帧风格预览\n3. 调整调色盘、像素块、描线、边缘阈值和帧率\n4. 用稳定风格设置导出 MP4",
+        "about_title": "关于 Cucumber",
+        "about_body": "Cucumber 是一个开源桌面软件，用来把视频转成转描像素游戏画面。",
     },
 }
 
@@ -150,9 +192,9 @@ class DropArea(QFrame):
         layout.setSpacing(10)
 
         self.art = QLabel()
-        mascot = ASSET_DIR / "cucumber-mascot-360.png"
+        mascot = ASSET_DIR / "cucumber-mascot-cutout.png"
         if mascot.exists():
-            self.art.setPixmap(QPixmap(str(mascot)).scaled(220, 220, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.art.setPixmap(QPixmap(str(mascot)).scaled(340, 340, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.art.setAlignment(Qt.AlignCenter)
 
         self.title = QLabel()
@@ -213,6 +255,9 @@ class CucumberWindow(QMainWindow):
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
         self.setMinimumSize(1080, 700)
+        self.menus: dict[str, object] = {}
+        self.actions: dict[str, QAction] = {}
+        self._create_menus_and_toolbar()
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -226,9 +271,10 @@ class CucumberWindow(QMainWindow):
 
         side = QFrame()
         side.setObjectName("sidePanel")
+        side.setMinimumWidth(470)
         side_layout = QVBoxLayout(side)
         side_layout.setContentsMargins(20, 20, 20, 20)
-        side_layout.setSpacing(14)
+        side_layout.setSpacing(12)
         root_layout.addWidget(side, 2)
 
         brand = QHBoxLayout()
@@ -257,10 +303,22 @@ class CucumberWindow(QMainWindow):
         self.browse_button.clicked.connect(self.choose_video)
         side_layout.addWidget(self.browse_button)
 
+        settings_scroll = QScrollArea()
+        settings_scroll.setObjectName("settingsScroll")
+        settings_scroll.setWidgetResizable(True)
+        settings_scroll.setFrameShape(QFrame.NoFrame)
+        settings_host = QWidget()
+        settings_host.setObjectName("settingsHost")
+        settings_layout = QVBoxLayout(settings_host)
+        settings_layout.setContentsMargins(0, 0, 8, 0)
+        settings_layout.setSpacing(12)
         settings_grid = QGridLayout()
-        settings_grid.setHorizontalSpacing(14)
-        settings_grid.setVerticalSpacing(10)
-        side_layout.addLayout(settings_grid)
+        settings_grid.setColumnMinimumWidth(0, 136)
+        settings_grid.setColumnStretch(0, 0)
+        settings_grid.setColumnStretch(1, 1)
+        settings_grid.setHorizontalSpacing(18)
+        settings_grid.setVerticalSpacing(13)
+        settings_layout.addLayout(settings_grid)
 
         self.language_select = QComboBox()
         self.language_select.addItem("中文", "zh")
@@ -305,13 +363,16 @@ class CucumberWindow(QMainWindow):
 
         self.limit_frames = QCheckBox()
         self.limit_frames.setChecked(True)
-        side_layout.addWidget(self.limit_frames)
+        settings_layout.addWidget(self.limit_frames)
 
         self.frame_limit = QSpinBox()
         self.frame_limit.setRange(12, 5000)
         self.frame_limit.setSingleStep(12)
         self.frame_limit.setValue(120)
         self.setting_labels["frame_limit"] = self._add_row(settings_grid, 11, "", self.frame_limit)
+        settings_layout.addStretch(1)
+        settings_scroll.setWidget(settings_host)
+        side_layout.addWidget(settings_scroll, 1)
 
         self.preview_button = QPushButton()
         self.preview_button.clicked.connect(self.render_preview)
@@ -336,16 +397,120 @@ class CucumberWindow(QMainWindow):
         self.apply_language()
         self._refresh_controls()
 
+    def _create_menus_and_toolbar(self) -> None:
+        menu_bar = self.menuBar()
+        self.menus["file"] = menu_bar.addMenu("")
+        self.menus["settings"] = menu_bar.addMenu("")
+        self.menus["pipeline"] = menu_bar.addMenu("")
+        self.menus["view"] = menu_bar.addMenu("")
+        self.menus["help"] = menu_bar.addMenu("")
+
+        self.actions["open"] = self._action("Ctrl+O", self.choose_video)
+        self.actions["preview"] = self._action("Ctrl+R", self.render_preview)
+        self.actions["export"] = self._action("Ctrl+E", self.export_video)
+        self.actions["open_exports"] = self._action("", self.open_exports_folder)
+        self.actions["quit"] = self._action("Ctrl+Q", self.close)
+        self.actions["reset"] = self._action("", self.reset_style)
+        self.actions["language_zh"] = self._action("", lambda: self.set_language("zh"))
+        self.actions["language_en"] = self._action("", lambda: self.set_language("en"))
+        self.actions["pipeline_overview"] = self._action("", self.show_pipeline_overview)
+        self.actions["toggle_frame_limit"] = self._action("", self.toggle_frame_limit)
+        self.actions["about"] = self._action("", self.show_about)
+
+        self.menus["file"].addAction(self.actions["open"])
+        self.menus["file"].addSeparator()
+        self.menus["file"].addAction(self.actions["preview"])
+        self.menus["file"].addAction(self.actions["export"])
+        self.menus["file"].addSeparator()
+        self.menus["file"].addAction(self.actions["open_exports"])
+        self.menus["file"].addSeparator()
+        self.menus["file"].addAction(self.actions["quit"])
+
+        self.menus["settings"].addAction(self.actions["reset"])
+        self.menus["settings"].addSeparator()
+        self.menus["settings"].addAction(self.actions["language_zh"])
+        self.menus["settings"].addAction(self.actions["language_en"])
+
+        self.menus["pipeline"].addAction(self.actions["pipeline_overview"])
+        self.menus["pipeline"].addAction(self.actions["toggle_frame_limit"])
+        self.menus["view"].addAction(self.actions["open_exports"])
+        self.menus["help"].addAction(self.actions["about"])
+
+        toolbar = QToolBar("Main")
+        toolbar.setObjectName("mainToolbar")
+        toolbar.setIconSize(QSize(18, 18))
+        toolbar.setMovable(False)
+        toolbar.setToolButtonStyle(Qt.ToolButtonTextOnly)
+        toolbar.addAction(self.actions["open"])
+        toolbar.addAction(self.actions["preview"])
+        toolbar.addAction(self.actions["export"])
+        toolbar.addSeparator()
+        toolbar.addAction(self.actions["pipeline_overview"])
+        toolbar.addAction(self.actions["reset"])
+        self.addToolBar(Qt.TopToolBarArea, toolbar)
+
+    def _action(self, shortcut: str, handler) -> QAction:
+        action = QAction(self)
+        if shortcut:
+            action.setShortcut(shortcut)
+        action.triggered.connect(handler)
+        return action
+
     def change_language(self, _index: int | None = None) -> None:
         language = self.language_select.currentData()
         if language in TEXT:
             self.language = language
             self.apply_language()
 
+    def set_language(self, language: str) -> None:
+        if language not in TEXT:
+            return
+        self.language = language
+        index = self.language_select.findData(language)
+        if index >= 0 and self.language_select.currentIndex() != index:
+            self.language_select.blockSignals(True)
+            self.language_select.setCurrentIndex(index)
+            self.language_select.blockSignals(False)
+        self.apply_language()
+
+    def open_exports_folder(self) -> None:
+        EXPORT_DIR.mkdir(exist_ok=True)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(EXPORT_DIR)))
+
+    def reset_style(self) -> None:
+        self.palette.setCurrentText("Arcade Ink")
+        self.pixel_size.setValue(4)
+        self.max_width.setValue(640)
+        self.color_levels.setValue(6)
+        self.edge_strength.setValue(85)
+        self.line_thickness.setValue(1)
+        self.edge_low.setValue(64)
+        self.edge_high.setValue(132)
+        self.fps_limit.setValue(18)
+        self.preview_second.setValue(0)
+        self.limit_frames.setChecked(True)
+        self.frame_limit.setValue(120)
+        self.status.setText(self.tr("ready") if self.source_path is None else self.tr("video_loaded"))
+
+    def show_pipeline_overview(self) -> None:
+        QMessageBox.information(self, self.tr("pipeline_title"), self.tr("pipeline_body"))
+
+    def toggle_frame_limit(self) -> None:
+        self.limit_frames.setChecked(not self.limit_frames.isChecked())
+
+    def show_about(self) -> None:
+        QMessageBox.information(self, self.tr("about_title"), self.tr("about_body"))
+
     def tr(self, key: str) -> str:
         return TEXT[self.language][key]
 
     def apply_language(self) -> None:
+        for key, menu in self.menus.items():
+            menu.setTitle(self.tr(f"menu_{key}"))
+        for key, action in self.actions.items():
+            action_key = f"action_{key}"
+            if action_key in TEXT[self.language]:
+                action.setText(self.tr(action_key))
         self.caption.setText(self.tr("app_caption"))
         self.drop_area.set_language(self.language)
         if self.source_path is None:
@@ -461,6 +626,9 @@ class CucumberWindow(QMainWindow):
         enabled = self.source_path is not None and not (self.export_worker and self.export_worker.isRunning())
         self.preview_button.setEnabled(enabled)
         self.export_button.setEnabled(enabled)
+        if self.actions:
+            self.actions["preview"].setEnabled(enabled)
+            self.actions["export"].setEnabled(enabled)
 
     @staticmethod
     def _array_to_pixmap(frame) -> QPixmap:
@@ -481,6 +649,11 @@ class CucumberWindow(QMainWindow):
     def _add_row(grid: QGridLayout, row: int, label: str, widget: QWidget) -> QLabel:
         text = QLabel(label)
         text.setObjectName("settingLabel")
+        text.setMinimumWidth(132)
+        text.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        widget.setMinimumHeight(32)
+        if isinstance(widget, QComboBox):
+            widget.setMinimumWidth(260)
         grid.addWidget(text, row, 0)
         grid.addWidget(widget, row, 1)
         return text
@@ -499,10 +672,61 @@ class CucumberWindow(QMainWindow):
                 border: 1px solid #2e3c32;
                 border-radius: 8px;
             }
+            QMenuBar {
+                background: #111811;
+                color: #e7f7d8;
+                border-bottom: 1px solid #29382f;
+                padding: 3px 8px;
+            }
+            QMenuBar::item {
+                background: transparent;
+                padding: 7px 12px;
+                border-radius: 4px;
+            }
+            QMenuBar::item:selected {
+                background: #263627;
+                color: #d7ff72;
+            }
+            QMenu {
+                background: #151f17;
+                color: #eef8e4;
+                border: 1px solid #344539;
+                padding: 6px;
+            }
+            QMenu::item {
+                padding: 8px 28px 8px 16px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected {
+                background: #2f432f;
+                color: #d7ff72;
+            }
+            #mainToolbar {
+                background: #111811;
+                border-bottom: 1px solid #26362d;
+                spacing: 8px;
+                padding: 6px 10px;
+            }
+            #mainToolbar QToolButton {
+                background: #1c281e;
+                border: 1px solid #344739;
+                border-radius: 5px;
+                color: #eff9e7;
+                padding: 7px 10px;
+                font-weight: 600;
+            }
+            #mainToolbar QToolButton:hover {
+                background: #2d3f2f;
+                border-color: #79a847;
+            }
             #sidePanel {
                 background: #172019;
                 border: 1px solid #304036;
                 border-radius: 8px;
+            }
+            #settingsScroll, #settingsHost {
+                background: transparent;
+                border: none;
             }
             #appTitle {
                 font-size: 28px;
@@ -526,6 +750,8 @@ class CucumberWindow(QMainWindow):
             }
             #settingLabel {
                 color: #b6c9ae;
+                background: transparent;
+                font-size: 14px;
             }
             QPushButton {
                 background: #243226;
@@ -556,8 +782,15 @@ class CucumberWindow(QMainWindow):
                 background: #101611;
                 border: 1px solid #344539;
                 border-radius: 5px;
-                padding: 7px;
+                padding: 6px 10px;
                 color: #ecf8df;
+                min-height: 30px;
+            }
+            QComboBox QAbstractItemView {
+                background: #101611;
+                border: 1px solid #344539;
+                color: #ecf8df;
+                selection-background-color: #2d3f2f;
             }
             QProgressBar {
                 background: #101611;

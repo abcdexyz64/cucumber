@@ -6,6 +6,7 @@ Cucumber is an open-source desktop studio for rotoscoped pixel-video art. It con
 
 - Open MP4, MOV, AVI, MKV, or WEBM video in a desktop app.
 - Use the desktop UI in English or Chinese.
+- Use native-style File, Settings, Pipeline, View, and Help menus plus a quick toolbar.
 - Preview any frame with the current style settings.
 - Apply a stable palette or stable posterization across frames.
 - Add rotoscope-style ink outlines with adjustable thresholds and thickness.
