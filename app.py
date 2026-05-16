@@ -17,7 +17,7 @@ EXPORT_DIR.mkdir(exist_ok=True)
 TMP_DIR.mkdir(exist_ok=True)
 
 
-st.set_page_config(page_title="RotoPixel Studio", page_icon="RP", layout="wide")
+st.set_page_config(page_title="Cucumber", page_icon="CU", layout="wide")
 
 st.markdown(
     """
@@ -30,7 +30,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.title("RotoPixel Studio")
+st.title("Cucumber")
 st.caption("把视频统一成稳定的转描像素游戏画面。")
 
 uploaded = st.file_uploader("视频", type=["mp4", "mov", "avi", "mkv", "webm"])

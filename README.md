@@ -1,6 +1,6 @@
-# RotoPixel Studio
+# Cucumber
 
-RotoPixel Studio converts ordinary video into a consistent rotoscoped pixel-game look. It is built for game artists who want AI-generated clips, gameplay references, or filmed motion to land in the same visual language before being used as animation reference, cutscene material, or sprite-sheet source.
+Cucumber is an open-source rotoscoped pixel-video studio for game artists. The first app in the project, RotoPixel Studio, converts ordinary video into a consistent rotoscoped pixel-game look, so AI-generated clips, gameplay references, or filmed motion can land in the same visual language before being used as animation reference, cutscene material, or sprite-sheet source.
 
 ## What it does
 
@@ -45,3 +45,6 @@ tests/                  Focused processing tests
 
 This first version is intentionally deterministic. The default palettes and posterization are stable from frame to frame, which helps keep different generated video batches from looking like separate art directions.
 
+## License
+
+MIT
