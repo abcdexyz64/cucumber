@@ -5,6 +5,11 @@ if (-not (Test-Path ".\.venv\Scripts\python.exe")) {
 }
 
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force dist\Cucumber -ErrorAction SilentlyContinue
+Remove-Item -Force Cucumber.spec -ErrorAction SilentlyContinue
+
 .\.venv\Scripts\pyinstaller.exe `
     --noconfirm `
     --windowed `

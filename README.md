@@ -4,7 +4,8 @@ Cucumber is an open-source desktop studio for rotoscoped pixel-video art. It con
 
 ## What it does
 
-- Upload MP4, MOV, AVI, MKV, or WEBM video in a local browser UI.
+- Open MP4, MOV, AVI, MKV, or WEBM video in a desktop app.
+- Use the desktop UI in English or Chinese.
 - Preview any frame with the current style settings.
 - Apply a stable palette or stable posterization across frames.
 - Add rotoscope-style ink outlines with adjustable thresholds and thickness.
@@ -33,6 +34,8 @@ python cucumber_desktop.py
 ```
 
 The executable is created at `dist\Cucumber\Cucumber.exe`.
+
+The build script clears old desktop build output before packaging and copies `imageio` package metadata into the app bundle. This avoids the packaged-app startup error `PackageNotFoundError: No package metadata was found for imageio`.
 
 ## Web Prototype
 
